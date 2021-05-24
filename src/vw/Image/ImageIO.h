@@ -28,6 +28,7 @@
 #include <vw/Core/ThreadPool.h>
 #include <vw/Image/ImageResource.h>
 #include <vw/Image/ImageView.h>
+#include <vw/Core/Stopwatch.h>
 
 namespace vw {
 
@@ -294,6 +295,8 @@ namespace vw {
         ? num_threads 
         : vw_settings().default_num_threads();
 
+      double total_seconds = 0.0;
+
 #pragma omp parallel for num_threads(num_omp_threads)
       for (int32 index = 0; index < total_num_blocks; index++) {
         const int32 i_block_index = index % total_x_blocks;
@@ -310,8 +313,12 @@ namespace vw {
                                       std::min<int32>(j+block_size.y(),rows)));
 
         // Rasterize this image block
+        Stopwatch sw;
+        sw.start();
         ImageView<typename ImageT::pixel_type> image_block( crop(image.impl(), current_bbox) );
         ImageBuffer buf = image_block.buffer();
+        sw.stop();
+        total_seconds += sw.elapsed_seconds();
 
         // Report progress
         progress_callback.report_incremental_progress(1.0 / total_num_blocks);
@@ -323,6 +330,9 @@ namespace vw {
       }
 
       write_queue.join_all();
+
+      printf("\nRasterizing %lld blocks took %f seconds avg\n", total_num_blocks, total_seconds / total_num_blocks);
+      printf("Writing %lld blocks took %f seconds\n", total_num_blocks, write_queue.get_total_time());
 #else
       // Set up the threaded block writer object, which will manage rasterizing
       // and writing images to disk one block (and one thread) at a time.
