@@ -23,7 +23,8 @@
 /.gcda.stamp
 *.log
 *.trs
-
+.vscode
+fort.6
 # Autotools Stuff
 Makefile
 Makefile.in
