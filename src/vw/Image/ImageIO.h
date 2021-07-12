@@ -276,9 +276,7 @@ namespace vw {
     if (resource.has_block_write())
       block_size = resource.block_write_size();
 
-    const size_t total_x_blocks = ((cols-1)/block_size.x()+1);
-    const size_t total_y_blocks = ((rows-1)/block_size.y()+1);
-    const size_t total_num_blocks = total_y_blocks * total_x_blocks;
+    size_t total_num_blocks = ((rows-1)/block_size.y()+1) * ((cols-1)/block_size.x()+1);
     VW_OUT(DebugMessage,"image") << "block_write_image: writing " << total_num_blocks << " blocks.\n";
 
     // Early out for easy case
@@ -286,44 +284,6 @@ namespace vw {
       ImageView<typename ImageT::pixel_type> image_block = image.impl();
       resource.write( image_block.buffer(), BBox2i(0,0,image_block.cols(),image_block.rows()) );
     } else {
-#if defined(_OPENMP)
-      OrderedWorkQueue write_queue(1);
-      CountingSemaphore write_limit(vw_settings().write_pool_size());
-
-      const int num_omp_threads = num_threads > 0 
-        ? num_threads 
-        : vw_settings().default_num_threads();
-
-#pragma omp parallel for num_threads(num_omp_threads)
-      for (int32 index = 0; index < total_num_blocks; index++) {
-        const int32 i_block_index = index % total_x_blocks;
-        const int32 j_block_index = index / total_x_blocks;
-
-        const int32 i = i_block_index * block_size.x();
-        const int32 j = j_block_index * block_size.y();
-
-        VW_OUT(DebugMessage, "image") << "ImageIO scheduling block at [" << i << " " << j << "]/[" << rows << " " << cols << "] blocksize = " << block_size.x() << " x " <<  block_size.y() << "\n";
-
-        // Rasterize and save this image block
-        BBox2i current_bbox(Vector2i(i,j),
-                            Vector2i(std::min<int32>(i+block_size.x(),cols),
-                                      std::min<int32>(j+block_size.y(),rows)));
-
-        // Rasterize this image block
-        ImageView<typename ImageT::pixel_type> image_block( crop(image.impl(), current_bbox) );
-        ImageBuffer buf = image_block.buffer();
-
-        // Report progress
-        progress_callback.report_incremental_progress(1.0 / total_num_blocks);
-
-        // With rasterization complete, we queue up a request to write this block to disk.
-        boost::shared_ptr<Task> write_task ( new ThreadedBlockWriter::WriteBlockTask<typename ImageT::pixel_type>( resource, image_block, current_bbox, index, write_limit ) );
-
-        write_queue.add_task(write_task, index);
-      }
-
-      write_queue.join_all();
-#else
       // Set up the threaded block writer object, which will manage rasterizing
       // and writing images to disk one block (and one thread) at a time.
       ThreadedBlockWriter block_writer(num_threads);
@@ -349,7 +309,6 @@ namespace vw {
 
       // Start the threaded block writer and wait for all tasks to finish.
       block_writer.process_blocks();
-#endif
     }
     progress_callback.report_finished();
   }
