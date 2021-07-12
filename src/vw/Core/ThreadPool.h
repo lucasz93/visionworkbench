@@ -97,7 +97,6 @@ namespace vw {
     std::list<int> m_available_thread_ids; 
     Condition      m_joined_event;
     bool           m_should_die;
-    double         m_total_seconds;
 
     // This is called whenever a worker thread finishes its task. If
     // there are more tasks available, the worker is given more work.
@@ -145,9 +144,6 @@ namespace vw {
     // to be empty.
     void join_all();
     void kill_and_join();
-
-    void add_seconds(double s);
-    double get_total_time() const { return m_total_seconds; }
   };
 
 

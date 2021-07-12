@@ -19,7 +19,6 @@
 #include <vw/Core/Exception.h>
 #include <vw/Core/Log.h>
 #include <vw/Core/ThreadPool.h>
-#include <vw/Core/Stopwatch.h>
 
 #include <ostream>
 
@@ -59,13 +58,8 @@ void WorkQueue::WorkerThread::operator()() {
   do {
     VW_OUT(DebugMessage, "thread") << "ThreadPool: running worker thread "
                                    << m_thread_id << "\n";
-    Stopwatch sw;
-    sw.start();
-
     // Run the task and then signal that it is finished
     (*m_task)();
-    sw.stop();
-    m_queue.add_seconds(sw.elapsed_seconds());
     m_task->signal_finished();
 
     {
@@ -97,7 +91,7 @@ void WorkQueue::worker_thread_complete(int worker_id) {
 }
 
 WorkQueue::WorkQueue(int num_threads )
-  : m_active_workers(0), m_max_workers(num_threads), m_should_die(false), m_total_seconds(0.0) {
+  : m_active_workers(0), m_max_workers(num_threads), m_should_die(false) {
   m_running_threads.resize(num_threads);
   for (int i = 0; i < num_threads; ++i)
     m_available_thread_ids.push_back(i);
@@ -155,11 +149,6 @@ void WorkQueue::join_all() {
 void WorkQueue::kill_and_join() {
   m_should_die = true;
   this->join_all();
-}
-
-void WorkQueue::add_seconds(double s) {
-  Mutex::Lock lock(m_queue_mutex);
-  m_total_seconds += s;
 }
 
 
