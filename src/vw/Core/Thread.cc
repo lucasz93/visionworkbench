@@ -18,8 +18,13 @@
 #include <vw/config.h>
 #include <vw/Core/Thread.h>
 #include <vw/Core/FundamentalTypes.h>
+#include <vw/Core/RunOnce.h>
 
 #include <boost/thread.hpp>
+
+#ifdef _PTHREAD_H
+#include <dlfcn.h>
+#endif
 
 namespace vw {
 namespace thread {
@@ -47,6 +52,17 @@ namespace thread {
     return *ptr;
   }
 
+#ifdef _PTHREAD_H
+  typedef size_t (*pthread_get_minstack_fn)(pthread_attr_t *attr);
+  static pthread_get_minstack_fn __pthread_get_minstack = nullptr;
+
+  vw::RunOnce get_minstack_once = VW_RUNONCE_INIT;
+
+  void get_minstack_init() {
+    vw::thread::__pthread_get_minstack = (vw::thread::pthread_get_minstack_fn)dlsym(RTLD_DEFAULT, "__pthread_get_minstack");
+  }
+#endif
+
 }} // namespace vw::thread
 
 vw::uint64 vw::Thread::id() {
@@ -61,4 +77,18 @@ vw::uint64 vw::Thread::id() {
   // Then we return the result.
   vw::uint64* result = thread::vw_thread_id_ptr().get();
   return *result;
+}
+
+size_t vw::Thread::get_platform_stack_minsize(boost::thread::attributes &attr) {
+#ifdef _PTHREAD_H
+  // Pthread goof: thread stack size must include space for TLS and other
+  // housekeeping. Need to ask glibc how much it wants for that. See
+  // https://bugs.launchpad.net/ubuntu/+source/glibc/+bug/1757517
+  // https://github.com/rust-lang/rust/issues/6233
+  // http://mail.openjdk.java.net/pipermail/core-libs-dev/2019-May/060529.html
+  vw::thread::get_minstack_once.run(vw::thread::get_minstack_init);
+  return vw::thread::__pthread_get_minstack(attr.native_handle());
+#else
+  return 0;
+#endif
 }
