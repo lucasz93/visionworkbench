@@ -21,13 +21,19 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Release" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWi
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "MinSizeRel")
     set(OPTIMIZATION_LEVEL "-Os")
 else()
-    set(OPTIMIZATION_LEVEL "-Og")
+    set(OPTIMIZATION_LEVEL "-O0")
+endif()
+
+# Determine debug info type.
+# Default to -g to preserve original behaviour.
+if(NOT CMAKE_BUILD_TYPE)
+	set(DEBUG_INFO_LEVEL "-g")
 endif()
 
 # cmake fails without the -L flag in CMAKE_CXX_FLAGS, oddly enough.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPTIMIZATION_LEVEL} -g -std=c++11 -L${BINARYBUILDER_INSTALL_DIR}/lib")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OPTIMIZATION_LEVEL} -g")
-set(CMAKE_EXE_LINKER_FLAGS "-lm -pthread -lpthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPTIMIZATION_LEVEL} ${DEBUG_INFO_LEVEL} -m64 -std=c++11 -L${BINARYBUILDER_INSTALL_DIR}/lib")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OPTIMIZATION_LEVEL} ${DEBUG_INFO_LEVEL} -m64")
+set(CMAKE_EXE_LINKER_FLAGS "-lm -pthread -lpthread -ldl")
 
 if(APPLE)
     # A workaround for the clang included with conda build
