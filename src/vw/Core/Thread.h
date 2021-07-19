@@ -178,13 +178,29 @@ namespace vw {
     /// constructable.  The thread made a copy of the task, and this
     /// instance is no longer directly accessibly from the parent thread.
     template<class TaskT>
-    inline Thread( TaskT task ) : m_thread( task ) {}
+    inline Thread( TaskT task ) {
+      boost::thread::attributes attr;
+
+      // Ames Stereo Pipeline was running out of stack space when running
+      // stereo_tri in threads. Upping stack size from default 8KB to 32KB.
+      attr.set_stack_size(32768 + get_platform_stack_minsize(attr));
+
+      m_thread = std::move(boost::thread(attr, task));
+    }
 
     /// This variant of the constructor takes a shared pointer to a task.
     /// The thread makes a copy of the shared pointer task, allowing
     /// the parent to still access the task instance that is running in the thread.
     template<class TaskT>
-    inline Thread( boost::shared_ptr<TaskT> task ) : m_thread( TaskHelper<TaskT>(task) ) {}
+    inline Thread( boost::shared_ptr<TaskT> task ) {
+      boost::thread::attributes attr;
+
+      // Ames Stereo Pipeline was running out of stack space when running
+      // stereo_tri in threads. Upping stack size from default 8KB to 32KB.
+      attr.set_stack_size(32768 + get_platform_stack_minsize(attr));
+
+      m_thread = std::move(boost::thread(attr, TaskHelper<TaskT>(task)));
+    }
 
     /// Destroys the thread. User is expected to either call join() themselves,
     /// or let the thread run free. We don't call join() here because most users
@@ -228,6 +244,10 @@ namespace vw {
       xt.nsec += static_cast<uint32>(1e6) * milliseconds;
       boost::thread::sleep(xt);
     }
+
+    /// Gets the size of the stack desired by the platform.
+    /// Filled by things like thread-local storage.
+    static size_t get_platform_stack_minsize(boost::thread::attributes &attr);
   }; // End class Thread
 
 
