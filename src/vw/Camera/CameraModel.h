@@ -100,8 +100,27 @@ namespace camera {
     // circumstances, but it most not be made up of NaN values, as those
     // are hard to compare.
     inline static Vector2 invalid_pixel(){ return Vector2(-1e8, -1e8); }
+
+    /// Some cameras (such as ISIS) aren't thread safe and need to be
+    /// created on a per-thread basis. These methods manage that creation
+    /// (and caching) of those contexts.
+    friend class CameraModelClient;
+    virtual bool allocate_context() { return false; }
+    virtual void free_context() {}
   };
 
+  /// This class manages the lifecycle of a CameraModel thread context.
+  class CameraModelClient {
+  public:
+    CameraModelClient(CameraModel* m) : m_model(m), m_acquired(m->allocate_context()) {}
+    ~CameraModelClient() { 
+      if (m_acquired)
+        m_model->free_context();
+    }
+  private:
+    CameraModel* m_model;
+    bool         m_acquired;
+  };
 
   /// This class is useful if you have an existing camera model, and
   /// you want to systematically "tweak" its extrinsic and intrinsic

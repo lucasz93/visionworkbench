@@ -288,8 +288,8 @@ namespace vw {
       // and writing images to disk one block (and one thread) at a time.
       ThreadedBlockWriter block_writer(num_threads);
 
-      for (int32 j = 0; j < rows; j+= block_size.y()) {
-        for (int32 i = 0; i < cols; i+= block_size.x()) {
+      for (int32 j = 0; j < 256; j+= block_size.y()) {
+        for (int32 i = 0; i < 512; i+= block_size.x()) {
           VW_OUT(DebugMessage, "image") << "ImageIO scheduling block at [" << i << " " << j << "]/[" << rows << " " << cols << "] blocksize = " << block_size.x() << " x " <<  block_size.y() << "\n";
 
           // Rasterize and save this image block
