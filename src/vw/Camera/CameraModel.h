@@ -26,6 +26,8 @@
 
 #include <fstream>
 #include <vw/Core/Exception.h>
+#include <vw/Core/Log.h>
+#include <vw/Core/Thread.h>
 #include <vw/Math/Matrix.h>
 #include <vw/Math/Vector.h>
 #include <vw/Math/Quaternion.h>
@@ -100,26 +102,6 @@ namespace camera {
     // circumstances, but it most not be made up of NaN values, as those
     // are hard to compare.
     inline static Vector2 invalid_pixel(){ return Vector2(-1e8, -1e8); }
-
-    /// Some cameras (such as ISIS) aren't thread safe and need to be
-    /// created on a per-thread basis. These methods manage that creation
-    /// (and caching) of those contexts.
-    friend class CameraModelClient;
-    virtual bool allocate_context() { return false; }
-    virtual void free_context() {}
-  };
-
-  /// This class manages the lifecycle of a CameraModel thread context.
-  class CameraModelClient {
-  public:
-    CameraModelClient(CameraModel* m) : m_model(m), m_acquired(m->allocate_context()) {}
-    ~CameraModelClient() { 
-      if (m_acquired)
-        m_model->free_context();
-    }
-  private:
-    CameraModel* m_model;
-    bool         m_acquired;
   };
 
   /// This class is useful if you have an existing camera model, and
@@ -226,6 +208,101 @@ namespace camera {
   };
 
   std::ostream& operator<<(std::ostream&, AdjustedCameraModel const&);
+
+  //-------------------------------------------------------------------------------------
+  // Allocators
+
+  /// Interface.
+  class CameraModelAllocator {
+  public:
+    virtual boost::shared_ptr<CameraModel> allocate();
+    virtual void                           deallocate(CameraModel *cam);
+  };
+
+  /// Use with thread safe CameraModels.
+  class CameraModelNoAllocator : public CameraModelAllocator {
+  public:
+    CameraModelNoAllocator() = delete;
+    CameraModelNoAllocator(boost::shared_ptr<CameraModel> model) : m_model(model) {}
+
+    boost::shared_ptr<CameraModel> allocate() final override {
+      return m_model;
+    }
+
+    void deallocate(CameraModel *cam) final override {}
+
+  private:
+    boost::shared_ptr<CameraModel> m_model;
+  };
+
+  /// Keeps a cache of previously allocated cameras.
+  /// Can be used for CameraModels which aren't thread safe, like ISIS cameras.
+  class CameraModelLruAllocator : public CameraModelAllocator {
+  public:
+    CameraModelLruAllocator(std::function<CameraModel*()> create, std::function<void(CameraModel*)> destroy = delete_camera_model, int max_size = 0) 
+      : m_create(create)
+      , m_destroy(destroy)
+      , m_allocated(0)
+      , m_max_size(max_size > 0 ? max_size : std::numeric_limits<int>::max())
+    {
+      m_deleter = [&](CameraModel* cam) {
+        this->deallocate(cam);
+      };
+    }
+
+    ~CameraModelLruAllocator() {
+      {
+        vw::Mutex::WriteLock lock(m_mutex);
+        if (m_lru.size() != m_allocated)
+          VW_OUT(ErrorMessage, "CameraModelLruAllocator") << "Destroying an LRU allocator while some of its models are alive!" << std::endl;
+      }
+
+      while (m_lru.size()) {
+        m_destroy(m_lru.front());
+        m_lru.pop_front();
+      }
+    }
+
+    boost::shared_ptr<CameraModel> allocate() final override {
+      vw::Mutex::WriteLock lock(m_mutex);
+
+      if (m_allocated == m_max_size && !m_lru.size())
+        throw std::runtime_error("CameraModelLruAllocator ran out of cached instances.");
+
+      CameraModel* instance = nullptr;
+
+      if (m_lru.size()) {
+        instance = m_lru.front();
+        m_lru.pop_front();
+      } else {
+        instance = m_create();
+        m_allocated++;
+      }
+
+      return boost::shared_ptr<CameraModel>(instance, m_deleter);
+    }
+
+    void deallocate(CameraModel *cam) final override {
+      vw::Mutex::WriteLock lock(m_mutex);
+      m_lru.push_back(cam);
+    }
+
+  private:
+    static void delete_camera_model(CameraModel *cam) {
+      delete cam;
+    }
+
+    std::deque<CameraModel*>          m_lru;
+    int                               m_allocated;
+    const int                         m_max_size;
+    vw::Mutex                         m_mutex;
+
+    // Used by shared_ptrs to call the LRU deallocate function.
+    std::function<void(CameraModel*)> m_deleter;
+
+    std::function<CameraModel*()>     m_create;
+    std::function<void(CameraModel*)> m_destroy;
+  };
 
   //-------------------------------------------------------------------------------------
   // Helper functions
