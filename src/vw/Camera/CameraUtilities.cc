@@ -215,21 +215,21 @@ void fit_camera_to_xyz(std::string const& camera_type,
 }
   
 /// Load a pinhole camera model of any supported type
-boost::shared_ptr<vw::camera::CameraModel>
+vw::camera::CameraModelAllocatorPtr
 load_pinhole_camera_model(std::string const& path){
 
   std::string lcase_file = boost::to_lower_copy(path);
   if (boost::ends_with(lcase_file,".cahvore") ) {
-    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::CAHVOREModel(path) );
+    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::CAHVOREModel>(path));
   } else if (boost::ends_with(lcase_file,".cahvor") ||
              boost::ends_with(lcase_file,".cmod"  )   ) {
-    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::CAHVORModel(path) );
+    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::CAHVORModel>(path));
   } else if ( boost::ends_with(lcase_file,".cahv") ||
               boost::ends_with(lcase_file,".pin" )   ) {
-    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::CAHVModel(path) );
+    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::CAHVModel>(path));
   } else if ( boost::ends_with(lcase_file,".pinhole") ||
               boost::ends_with(lcase_file,".tsai"   )   ) {
-    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::PinholeModel(path) );
+    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::PinholeModel>(path));
   } else {
     vw::vw_throw(vw::ArgumentErr() << "PinholeStereoSession: unsupported camera file type.\n");
   }
@@ -237,7 +237,7 @@ load_pinhole_camera_model(std::string const& path){
 
 
 /// Load a pinhole, CAHV, CAHVOR, or CAHVORE model and convert to CAHV.
-boost::shared_ptr<vw::camera::CAHVModel>
+vw::camera::CameraModelAllocatorPtr
 load_cahv_pinhole_camera_model(std::string const& image_path,
                                std::string const& camera_path){
   // Get the image size
@@ -270,7 +270,7 @@ load_cahv_pinhole_camera_model(std::string const& image_path,
     vw_throw(vw::ArgumentErr() << "load_cahv_pinhole_camera_model - unsupported camera file type.\n");
   }
 
-  return cahv;
+  return vw::camera::CameraModelNoAllocator::create(cahv);
 }
 
 int auto_compute_sample_spacing(Vector2i const image_size) {

@@ -63,10 +63,10 @@ void fit_camera_to_xyz(std::string const& camera_type,
 		       bool verbose, boost::shared_ptr<CameraModel> & out_cam);
   
 /// Load a pinhole camera model of any supported type
-boost::shared_ptr<CameraModel> load_pinhole_camera_model(std::string const& path);
+vw::camera::CameraModelAllocatorPtr load_pinhole_camera_model(std::string const& path);
 
 /// Load a pinhole, CAHV, CAHVOR, or CAHVORE model and convert to CAHV.
-boost::shared_ptr<CAHVModel>
+vw::camera::CameraModelAllocatorPtr
 load_cahv_pinhole_camera_model(std::string const& image_path,
                                std::string const& camera_path);
 
