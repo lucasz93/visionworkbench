@@ -136,7 +136,7 @@ CAHVOREModel::~CAHVOREModel() {}
 std::string CAHVOREModel::type() const { return "CAHVORE"; }
 
 // Write CAHVOR model to file.
-void CAHVOREModel::write(std::string const& filename) {
+void CAHVOREModel::write(std::string const& filename) const {
   try {
     std::ofstream output(filename.c_str(), std::ofstream::out);
     output.exceptions(std::ofstream::failbit | std::ofstream::badbit);

@@ -90,7 +90,7 @@ std::string
 CAHVORModel::type() const { return "CAHVOR"; }
 
 // Write CAHVOR model to file.
-void CAHVORModel::write(std::string const& filename) {
+void CAHVORModel::write(std::string const& filename) const {
 
   try {
     std::ofstream output(filename.c_str(), std::ofstream::out);
