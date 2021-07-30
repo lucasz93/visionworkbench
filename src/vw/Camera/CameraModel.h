@@ -101,6 +101,11 @@ namespace camera {
     /// Has this camera been tweaked?
     virtual bool is_adjusted() const { return false; }
 
+    /// Function to "map" the CAHVORE parameters into CAHV
+    virtual boost::shared_ptr<CameraModel> linearize_camera(Vector2i const& cahvore_image_size, Vector2i const& cahv_image_size) const {
+      throw std::runtime_error("linearize_camera for this CameraModel");
+    }
+
     // This should be a value which can never occur in normal
     // circumstances, but it most not be made up of NaN values, as those
     // are hard to compare.
@@ -234,14 +239,13 @@ namespace camera {
       return CameraModelAllocatorPtr(new CameraModelNoAllocator(model));
     }
 
-    CameraModelPtr allocate() final override {
-      return m_model;
-    }
-
+    CameraModelPtr allocate() final override { return m_model; }
     void deallocate(CameraModel *cam) final override {}
 
   private:
     CameraModelNoAllocator() = delete;
+    CameraModelNoAllocator(const CameraModelNoAllocator& rhs) = delete;
+    
     CameraModelNoAllocator(CameraModelPtr model) : m_model(model) {}
 
     CameraModelPtr m_model;
@@ -301,6 +305,7 @@ namespace camera {
 
   private:
     CameraModelLruAllocator() = delete;
+    CameraModelLruAllocator(const CameraModelLruAllocator& rhs) = delete;
 
     CameraModelLruAllocator(std::function<CameraModel*()> create, std::function<void(CameraModel*)> destroy, int max_size) 
       : m_create(create)

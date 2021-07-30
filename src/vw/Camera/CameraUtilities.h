@@ -63,10 +63,10 @@ void fit_camera_to_xyz(std::string const& camera_type,
 		       bool verbose, boost::shared_ptr<CameraModel> & out_cam);
   
 /// Load a pinhole camera model of any supported type
-vw::camera::CameraModelAllocatorPtr load_pinhole_camera_model(std::string const& path);
+boost::shared_ptr<CameraModel> load_pinhole_camera_model(std::string const& path);
 
 /// Load a pinhole, CAHV, CAHVOR, or CAHVORE model and convert to CAHV.
-vw::camera::CameraModelAllocatorPtr
+boost::shared_ptr<CAHVModel>
 load_cahv_pinhole_camera_model(std::string const& image_path,
                                std::string const& camera_path);
 
@@ -699,8 +699,8 @@ void get_epipolar_transformed_images(std::string const& left_camera_file,
 template <class ImageInT, class ImageOutT,  class EdgeT, class InterpT>
 void get_epipolar_transformed_pinhole_images(std::string const& left_camera_file,
                                              std::string const& right_camera_file,
-                                             boost::shared_ptr<CameraModel> const left_epi_cam,
-                                             boost::shared_ptr<CameraModel> const right_epi_cam,
+                                             vw::camera::CameraModelAllocatorPtr const left_epi_cam,
+                                             vw::camera::CameraModelAllocatorPtr const right_epi_cam,
                                              ImageInT  const& left_image_in,
                                              ImageInT  const& right_image_in,
                                              BBox2i    const& left_image_in_roi,

@@ -215,21 +215,21 @@ void fit_camera_to_xyz(std::string const& camera_type,
 }
   
 /// Load a pinhole camera model of any supported type
-vw::camera::CameraModelAllocatorPtr
+boost::shared_ptr<vw::camera::CameraModel>
 load_pinhole_camera_model(std::string const& path){
 
   std::string lcase_file = boost::to_lower_copy(path);
   if (boost::ends_with(lcase_file,".cahvore") ) {
-    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::CAHVOREModel>(path));
+    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::CAHVOREModel(path) );
   } else if (boost::ends_with(lcase_file,".cahvor") ||
              boost::ends_with(lcase_file,".cmod"  )   ) {
-    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::CAHVORModel>(path));
+    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::CAHVORModel(path) );
   } else if ( boost::ends_with(lcase_file,".cahv") ||
               boost::ends_with(lcase_file,".pin" )   ) {
-    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::CAHVModel>(path));
+    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::CAHVModel(path) );
   } else if ( boost::ends_with(lcase_file,".pinhole") ||
               boost::ends_with(lcase_file,".tsai"   )   ) {
-    return vw::camera::CameraModelNoAllocator::create(boost::make_shared<vw::camera::PinholeModel>(path));
+    return boost::shared_ptr<vw::camera::CameraModel>( new vw::camera::PinholeModel(path) );
   } else {
     vw::vw_throw(vw::ArgumentErr() << "PinholeStereoSession: unsupported camera file type.\n");
   }
@@ -237,7 +237,7 @@ load_pinhole_camera_model(std::string const& path){
 
 
 /// Load a pinhole, CAHV, CAHVOR, or CAHVORE model and convert to CAHV.
-vw::camera::CameraModelAllocatorPtr
+boost::shared_ptr<vw::camera::CAHVModel>
 load_cahv_pinhole_camera_model(std::string const& image_path,
                                std::string const& camera_path){
   // Get the image size
@@ -250,27 +250,28 @@ load_cahv_pinhole_camera_model(std::string const& image_path,
   boost::shared_ptr<vw::camera::CAHVModel> cahv(new vw::camera::CAHVModel);
   if (boost::ends_with(lcase_file, ".cahvore") ) {
     vw::camera::CAHVOREModel cahvore(camera_path);
-    *(cahv.get()) = vw::camera::linearize_camera(cahvore, image_size, image_size);
+    cahv = cahvore.linearize_camera(image_size, image_size);
   } else if (boost::ends_with(lcase_file, ".cahvor")  ||
              boost::ends_with(lcase_file, ".cmod"  )   ) {
     vw::camera::CAHVORModel cahvor(camera_path);
-    *(cahv.get()) = vw::camera::linearize_camera(cahvor, image_size, image_size);
+    cahv = cahvor.linearize_camera(image_size, image_size);
 
   } else if ( boost::ends_with(lcase_file, ".cahv") ||
               boost::ends_with(lcase_file, ".pin" )) {
-    *(cahv.get()) = vw::camera::CAHVModel(camera_path);
+    cahv.reset(new vw::camera::CAHVModel(camera_path));
 
   } else if ( boost::ends_with(lcase_file, ".pinhole") ||
               boost::ends_with(lcase_file, ".tsai"   )   ) {
     // The CAHV class is constructed from a Pinhole model.
     vw::camera::PinholeModel left_pin(camera_path);
+    cahv.reset(new vw::camera::CAHVModel);
     *(cahv.get()) = vw::camera::strip_lens_distortion(left_pin);
 
   } else {
     vw_throw(vw::ArgumentErr() << "load_cahv_pinhole_camera_model - unsupported camera file type.\n");
   }
 
-  return vw::camera::CameraModelNoAllocator::create(cahv);
+  return cahv;
 }
 
 int auto_compute_sample_spacing(Vector2i const image_size) {
@@ -326,8 +327,8 @@ resize_epipolar_cameras_to_fit(PinholeModel const& cam1,      PinholeModel const
                                BBox2i       const& roi1,      BBox2i       const& roi2,
                                Vector2i          & epi_size1, Vector2i          & epi_size2) {
   // Get transforms from input images to epipolar images
-  CameraTransform<PinholeModel, PinholeModel> in_to_epi1(cam1, epi_cam1);
-  CameraTransform<PinholeModel, PinholeModel> in_to_epi2(cam2, epi_cam2);
+  CameraTransform in_to_epi1(cam1, epi_cam1);
+  CameraTransform in_to_epi2(cam2, epi_cam2);
   
   // Figure out the bbox needed to contain the transformed image
   // - This just uses the ROIs for the two input images so the cameras can be shifted to align with 0,0.

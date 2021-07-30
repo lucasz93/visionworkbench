@@ -300,15 +300,15 @@ Vector2 CAHVOREModel::point_to_pixel(vw::Vector3 const& point) const {
                   dot_prod(rp,V) / alpha );
 }
 
-CAHVModel camera::linearize_camera( CAHVOREModel const& camera_model,
+camera::CameraModelPtr CAHVOREModel::linearize_camera(
                                     Vector2i const& cahvore_image_size,
-                                    Vector2i const& cahv_image_size ) {
+                                    Vector2i const& cahv_image_size ) const {
   // Limit to field of view
   const static double limfov = M_PI * 3/4; // 135 degrees field of view.
   const bool minfov          = true;       // Yes, minimize the common field of view
 
-  CAHVModel cahv_model;
-  cahv_model.C = camera_model.C;
+  boost::shared_ptr<CAHVModel> cahv_model(new CAHVModel);
+  cahv_model->C = C;
 
   // Record the landmark 2D coordinates around the perimeter of the image
   Vector2 hpts[6], vpts[6];
@@ -327,30 +327,30 @@ CAHVModel camera::linearize_camera( CAHVOREModel const& camera_model,
 
   // Choose a camera axis in the middle of the image
   Vector2 p2 = (cahvore_image_size-Vector2i(1,1))/2.0;
-  cahv_model.A = camera_model.pixel_to_vector( p2 );
+  cahv_model->A = pixel_to_vector( p2 );
 
   // Compute the original right and down vectors
-  Vector3 dn = cross_prod(camera_model.A, camera_model.H);
-  Vector3 rt = normalize(cross_prod(dn,   camera_model.A));
+  Vector3 dn = cross_prod(A,            H);
+  Vector3 rt = normalize(cross_prod(dn, A));
   dn = normalize( dn );
 
   // Adjust the right and down vectors to be orthogonal to new axis
-  rt = cross_prod(dn, cahv_model.A);
-  dn = normalize(cross_prod(cahv_model.A, rt));
+  rt = cross_prod(dn, cahv_model->A);
+  dn = normalize(cross_prod(cahv_model->A, rt));
   rt = normalize( rt );
 
   // Find horizontal and vertical fields of view
   double hmin = 1, hmax = -1;
   BOOST_FOREACH( Vector2 const& loop, hpts ) {
-    const Vector3 u3 = camera_model.pixel_to_vector(loop);
-    double cs = dot_prod(cahv_model.A, normalize(u3 - dot_prod(dn, u3) * dn));
+    const Vector3 u3 = pixel_to_vector(loop);
+    double cs = dot_prod(cahv_model->A, normalize(u3 - dot_prod(dn, u3) * dn));
     if (hmin > cs) hmin = cs;
     if (hmax < cs) hmax = cs;
   }
   double vmin = 1, vmax = -1;
   BOOST_FOREACH( Vector2 const& loop, vpts ) {
-    const Vector3 u3 = camera_model.pixel_to_vector(loop);
-    double cs = dot_prod(cahv_model.A,normalize(u3 - dot_prod(rt, u3)*rt));
+    const Vector3 u3 = pixel_to_vector(loop);
+    double cs = dot_prod(cahv_model->A,normalize(u3 - dot_prod(rt, u3)*rt));
     if (vmin > cs) vmin = cs;
     if (vmax < cs) vmax = cs;
   }
@@ -374,8 +374,8 @@ CAHVModel camera::linearize_camera( CAHVOREModel const& camera_model,
   Vector2 centers = (cahv_image_size - Vector2(1,1))/2.0;
 
   // Construct H and V
-  cahv_model.H = scalars[0] * rt + centers[0] * cahv_model.A;
-  cahv_model.V = scalars[1] * dn + centers[1] * cahv_model.A;
+  cahv_model->H = scalars[0] * rt + centers[0] * cahv_model->A;
+  cahv_model->V = scalars[1] * dn + centers[1] * cahv_model->A;
 
   return cahv_model;
 }

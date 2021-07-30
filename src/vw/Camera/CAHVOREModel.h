@@ -71,6 +71,10 @@ namespace camera {
     virtual Vector3 pixel_to_vector(Vector2 const& pix) const;
     virtual Vector3 camera_center(Vector2 const& /*pix*/ = Vector2() ) const;
 
+    // Function to "map" the CAHVORE parameters into CAHV:
+    virtual CameraModelPtr linearize_camera( Vector2i const& cahvore_image_size,
+                                             Vector2i const& cahv_image_size ) const override;
+
     /// Write CAHVORE model to file.
     void write(std::string const& filename);
 
@@ -88,11 +92,6 @@ namespace camera {
   private:
     bool check_line( std::istream& istream, char letter );
   };
-
-  // Function to "map" the CAHVORE parameters into CAHV:
-  CAHVModel linearize_camera( CAHVOREModel const& camera_model,
-                              Vector2i const& cahvore_image_size,
-                              Vector2i const& cahv_image_size );
 
 }} // namespace vw::camera
 
