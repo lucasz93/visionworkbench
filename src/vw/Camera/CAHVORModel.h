@@ -65,6 +65,10 @@ namespace camera {
     virtual Vector3 pixel_to_vector(Vector2 const& pix) const;
     virtual Vector3 camera_center(Vector2 const& /*pix*/ = Vector2() ) const;
 
+    virtual boost::shared_ptr<CameraModel> copy() const override {
+      return boost::make_shared<CAHVORModel>(*this);
+    }
+
     // Overloaded versions also return partial derviatives in a Matrix.
     Vector2 point_to_pixel(Vector3 const& point, Matrix<double> &partial_derivatives) const;
     Vector3 pixel_to_vector(Vector2 const& pix, Matrix<double> &partial_derivatives) const;
@@ -74,7 +78,7 @@ namespace camera {
                                 Matrix3x3& hess_u, Matrix3x3& hess_v ) const;
 
     /// Write CAHVOR model to file.
-    void write(std::string const& filename);
+    void write(std::string const& filename) const;
 
     //------------------------------------------------------------------
     // Exposed Variables
