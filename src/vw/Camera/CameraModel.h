@@ -26,6 +26,8 @@
 
 #include <fstream>
 #include <vw/Core/Exception.h>
+#include <vw/Core/Log.h>
+#include <vw/Core/Thread.h>
 #include <vw/Math/Matrix.h>
 #include <vw/Math/Vector.h>
 #include <vw/Math/Quaternion.h>
@@ -96,12 +98,20 @@ namespace camera {
     /// - Generally the input pixel is only used for linescane cameras.
     virtual Quaternion<double> camera_pose(Vector2 const& /*pix*/) const;
 
+    /// Has this camera been tweaked?
+    virtual bool is_adjusted() const { return false; }
+
+    /// Function to "map" the CAHVORE parameters into CAHV
+    virtual boost::shared_ptr<CameraModel> linearize_camera(Vector2i const& cahvore_image_size, Vector2i const& cahv_image_size) const {
+      throw std::runtime_error("linearize_camera for this CameraModel");
+    }
+
     // This should be a value which can never occur in normal
     // circumstances, but it most not be made up of NaN values, as those
     // are hard to compare.
     inline static Vector2 invalid_pixel(){ return Vector2(-1e8, -1e8); }
   };
-
+  typedef boost::shared_ptr<CameraModel> CameraModelPtr;
 
   /// This class is useful if you have an existing camera model, and
   /// you want to systematically "tweak" its extrinsic and intrinsic
@@ -195,6 +205,9 @@ namespace camera {
       return m_camera;
     }
 
+    /// Has this camera been tweaked?
+    virtual bool is_adjusted() const { return true; }
+
     /// Modify the adjustments by applying on top of them a rotation + translation
     /// transform with the origin at the center of the planet (such as
     /// output by pc_align's forward or inverse computed alignment transform).
@@ -207,6 +220,113 @@ namespace camera {
   };
 
   std::ostream& operator<<(std::ostream&, AdjustedCameraModel const&);
+
+  //-------------------------------------------------------------------------------------
+  // Allocators
+
+  /// Interface.
+  class CameraModelAllocator {
+  public:
+    virtual boost::shared_ptr<CameraModel> allocate() = 0;
+    virtual void                           deallocate(CameraModel *cam) = 0;
+  };
+  typedef boost::shared_ptr<CameraModelAllocator> CameraModelAllocatorPtr;
+
+  /// Use with thread safe CameraModels.
+  class CameraModelNoAllocator : public CameraModelAllocator {
+  public:
+    static CameraModelAllocatorPtr create(CameraModelPtr model) {
+      return CameraModelAllocatorPtr(new CameraModelNoAllocator(model));
+    }
+
+    CameraModelPtr allocate() final override { return m_model; }
+    void deallocate(CameraModel *cam) final override {}
+
+  private:
+    CameraModelNoAllocator() = delete;
+    CameraModelNoAllocator(const CameraModelNoAllocator& rhs) = delete;
+    
+    CameraModelNoAllocator(CameraModelPtr model) : m_model(model) {}
+
+    CameraModelPtr m_model;
+  };
+
+  /// Keeps a cache of previously allocated cameras.
+  /// Can be used for CameraModels which aren't thread safe, like ISIS cameras.
+  class CameraModelLruAllocator : public CameraModelAllocator, public std::enable_shared_from_this<CameraModelLruAllocator> {
+  public:
+    static CameraModelAllocatorPtr create(std::function<CameraModel*()> create, std::function<void(CameraModel*)> destroy = delete_camera_model, int max_size = 0) {
+      return CameraModelAllocatorPtr(new CameraModelLruAllocator(create, destroy, max_size));
+    }
+
+    ~CameraModelLruAllocator() {
+      {
+        vw::Mutex::WriteLock lock(m_mutex);
+        if (m_lru.size() != m_allocated)
+          VW_OUT(ErrorMessage, "CameraModelLruAllocator") << "Destroying an LRU allocator while some of its models are alive!" << std::endl;
+      }
+
+      while (m_lru.size()) {
+        m_destroy(m_lru.front());
+        m_lru.pop_front();
+      }
+    }
+
+    boost::shared_ptr<CameraModel> allocate() final override {
+      vw::Mutex::WriteLock lock(m_mutex);
+
+      if (m_allocated == m_max_size && !m_lru.size())
+        throw std::runtime_error("CameraModelLruAllocator ran out of cached instances.");
+
+      CameraModel* instance = nullptr;
+
+      if (m_lru.size()) {
+        instance = m_lru.front();
+        m_lru.pop_front();
+      } else {
+        instance = m_create();
+        m_allocated++;
+      }
+
+      // 'shared_from_this' only works when the object is already defined as a shared_ptr.
+      // CameraModelLruAllocator::create only creates as shared_ptrs, so we're safe.
+      auto self = shared_from_this();
+      auto deleter = [self](CameraModel* cam) {
+        self->deallocate(cam);
+      };
+
+      return boost::shared_ptr<CameraModel>(instance, deleter);
+    }
+
+    void deallocate(CameraModel *cam) final override {
+      vw::Mutex::WriteLock lock(m_mutex);
+      m_lru.push_back(cam);
+    }
+
+  private:
+    CameraModelLruAllocator() = delete;
+    CameraModelLruAllocator(const CameraModelLruAllocator& rhs) = delete;
+
+    CameraModelLruAllocator(std::function<CameraModel*()> create, std::function<void(CameraModel*)> destroy, int max_size) 
+      : m_create(create)
+      , m_destroy(destroy)
+      , m_allocated(0)
+      , m_max_size(max_size > 0 ? max_size : std::numeric_limits<int>::max())
+    {
+    }
+
+    static void delete_camera_model(CameraModel *cam) {
+      delete cam;
+    }
+
+    std::deque<CameraModel*>          m_lru;
+    int                               m_allocated;
+    const int                         m_max_size;
+    vw::Mutex                         m_mutex;
+
+    std::function<CameraModel*()>     m_create;
+    std::function<void(CameraModel*)> m_destroy;
+  };
 
   //-------------------------------------------------------------------------------------
   // Helper functions

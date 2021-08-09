@@ -457,12 +457,11 @@ Vector2 CAHVORModel::point_to_pixel(Vector3 const& point) const {
 // (identical to A) and R (all terms zero) will not be output. Note
 // that image warping will be necessary in order to use the new
 // models.
-CAHVModel camera::linearize_camera( CAHVORModel const& camera_model,
-                                    Vector2i const& cahvor_image_size,
-                                    Vector2i const& cahv_image_size ) {
+CameraModelPtr CAHVORModel::linearize_camera( Vector2i const& cahvor_image_size,
+                                              Vector2i const& cahv_image_size ) const {
 
-  CAHVModel output_camera;
-  output_camera.C = camera_model.C;
+  boost::shared_ptr<CAHVModel> output_camera(new CAHVModel);
+  output_camera->C = C;
 
   static const bool minfov = true; // set to 0 if you do not want to
                                    // minimize to a common field of
@@ -484,21 +483,21 @@ CAHVModel camera::linearize_camera( CAHVORModel const& camera_model,
   vpts[5] = cahvor_image_size - Vector2(1,1);
 
   BOOST_FOREACH( Vector2 const& local, vpts ) {
-    output_camera.A += camera_model.pixel_to_vector(local);
+    output_camera->A += pixel_to_vector(local);
   }
   BOOST_FOREACH( Vector2 const& local, hpts ) {
-    output_camera.A += camera_model.pixel_to_vector(local);
+    output_camera->A += pixel_to_vector(local);
   }
-  output_camera.A = normalize(output_camera.A);
+  output_camera->A = normalize(output_camera->A);
 
   // Compute the original right and down vectors
-  Vector3 dn = cross_prod(camera_model.A, camera_model.H); // down vector
-  Vector3 rt = normalize(cross_prod(dn, camera_model.A)); // right vector
+  Vector3 dn = cross_prod(A,            H);  // down vector
+  Vector3 rt = normalize(cross_prod(dn, A)); // right vector
   dn = normalize(dn);
 
   // Adjust the right and down vectors to be orthogonal to new axis
-  rt = cross_prod(dn, output_camera.A);
-  dn = normalize(cross_prod(output_camera.A, rt));
+  rt = cross_prod(dn, output_camera->A);
+  dn = normalize(cross_prod(output_camera->A, rt));
   rt = normalize(rt);
 
   // Find horizontal and vertical fields of view
@@ -506,8 +505,8 @@ CAHVModel camera::linearize_camera( CAHVORModel const& camera_model,
   // Horizontal
   double hmin = 1, hmax = -1;
   BOOST_FOREACH( Vector2 const& loop, hpts ) {
-    Vector3 u3 = camera_model.pixel_to_vector(loop);
-    double sn = norm_2(cross_prod(output_camera.A,
+    Vector3 u3 = pixel_to_vector(loop);
+    double sn = norm_2(cross_prod(output_camera->A,
                                   normalize(u3 - dot_prod(dn, u3) * dn)));
     if (hmin > sn) hmin = sn;
     if (hmax < sn) hmax = sn;
@@ -516,8 +515,8 @@ CAHVModel camera::linearize_camera( CAHVORModel const& camera_model,
   // Vertical
   double vmin = 1, vmax = -1;
   BOOST_FOREACH( Vector2 const& loop, vpts ) {
-    Vector3 u3 = camera_model.pixel_to_vector(loop);
-    double sn = norm_2(cross_prod(output_camera.A,
+    Vector3 u3 = pixel_to_vector(loop);
+    double sn = norm_2(cross_prod(output_camera->A,
                                   normalize(u3 - dot_prod(rt, u3) * rt) ) );
     if (vmin > sn) vmin = sn;
     if (vmax < sn) vmax = sn;
@@ -540,16 +539,10 @@ CAHVModel camera::linearize_camera( CAHVORModel const& camera_model,
   }
 
   // Assign idealized image centers and coordinate angles
-  output_camera.H = scale_factors[0] * rt + image_center[0] * output_camera.A;
-  output_camera.V = scale_factors[1] * dn + image_center[1] * output_camera.A;
+  output_camera->H = scale_factors[0] * rt + image_center[0] * output_camera->A;
+  output_camera->V = scale_factors[1] * dn + image_center[1] * output_camera->A;
 
   return output_camera;
-}
-
-CAHVModel camera::linearize_camera( CAHVORModel const& camera_model,
-                                    int32 ix, int32 iy, int32 ox, int32 oy ) {
-  return vw::camera::linearize_camera( camera_model,
-                                       Vector2i( ix, iy), Vector2i(ox, oy) );
 }
 
 // Note: the second derivatives with respect to motion of the point are the

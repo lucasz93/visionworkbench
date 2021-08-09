@@ -69,6 +69,14 @@ namespace camera {
     Vector2 point_to_pixel(Vector3 const& point, Matrix<double> &partial_derivatives) const;
     Vector3 pixel_to_vector(Vector2 const& pix, Matrix<double> &partial_derivatives) const;
 
+    /// Function to "map" the CAHVOR parameters into CAHV parameters:
+    /// requires dimensions of input image and output image (usually the
+    /// same) You must supply the dimensions of the CAHVOR image that
+    /// you are dewarping, as well as the dimensions of the dewarped
+    /// cahv image (if they differ).
+    CameraModelPtr linearize_camera( Vector2i const& cavhor_image_size,
+                                     Vector2i const& cahv_image_size ) const override;
+
     void get_point_derivatives( Vector3 const& P, double& u, double& v,
                                 Vector3& grad_u, Vector3& grad_v,
                                 Matrix3x3& hess_u, Matrix3x3& hess_v ) const;
@@ -86,18 +94,6 @@ namespace camera {
     Vector3   O;
     Vector3   R;
   };
-
-  /// Function to "map" the CAHVOR parameters into CAHV parameters:
-  /// requires dimensions of input image and output image (usually the
-  /// same) You must supply the dimensions of the CAHVOR image that
-  /// you are dewarping, as well as the dimensions of the dewarped
-  /// cahv image (if they differ).
-  CAHVModel linearize_camera( CAHVORModel const& camera_model,
-                              Vector2i const& cavhor_image_size,
-                              Vector2i const& cahv_image_size );
-
-  CAHVModel linearize_camera( CAHVORModel const& camera_model,
-                              int32 ix, int32 iy, int32 ox, int32 oy ) VW_DEPRECATED;
 
 }}      // namespace vw::camera
 

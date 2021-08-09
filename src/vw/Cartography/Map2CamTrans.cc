@@ -24,7 +24,7 @@
 
 namespace vw { namespace cartography {
 
-  Map2CamTrans::Map2CamTrans( vw::camera::CameraModel const* cam,
+  Map2CamTrans::Map2CamTrans( vw::camera::CameraModelAllocatorPtr cam,
                               GeoReference const& image_georef,
                               GeoReference const& dem_georef,
                               std::string const& dem_file,
@@ -92,7 +92,7 @@ namespace vw { namespace cartography {
       (Vector3(lonlat[0], lonlat[1], h.child()));
     Vector2 pt;
     try{
-      pt = m_cam->point_to_pixel(xyz);
+      pt = m_cam->allocate()->point_to_pixel(xyz);
       if ( m_call_from_mapproject &&
            (pt[0] < b - 1 || pt[0] >= m_image_size[0] - b ||
             pt[1] < b - 1 || pt[1] >= m_image_size[1] - b)
@@ -205,7 +205,7 @@ namespace vw { namespace cartography {
 //=======================================================================
   
 
-  Datum2CamTrans::Datum2CamTrans( camera::CameraModel const* cam,
+  Datum2CamTrans::Datum2CamTrans( camera::CameraModelAllocatorPtr cam,
                                   GeoReference const& image_georef,
                                   GeoReference const& dem_georef,
                                   float dem_height,
@@ -231,7 +231,7 @@ namespace vw { namespace cartography {
       b = NearestPixelInterpolation::pixel_buffer;
     Vector2 pt;
     try{
-      pt = m_cam->point_to_pixel(xyz);
+      pt = m_cam->allocate()->point_to_pixel(xyz);
       if ( m_call_from_mapproject &&
           (pt[0] < b - 1 || pt[0] >= m_image_size[0] - b ||
             pt[1] < b - 1 || pt[1] >= m_image_size[1] - b)

@@ -465,13 +465,13 @@ namespace cartography {
   /// defined by georef. Scale is MPP as georeference space is in meters.
   /// - If coords is provided the intersection coordinates will be stored there.
   BBox2 camera_bbox(GeoReference const& georef,
-                    boost::shared_ptr<vw::camera::CameraModel> camera_model,
+                    vw::camera::CameraModelPtr camera_model,
                     int32 cols, int32 rows, float &scale,
                     std::vector<Vector2> *coords=0 );
 
   /// Overload with no scale return
   inline BBox2 camera_bbox(GeoReference const& dem_georef,
-                           boost::shared_ptr<vw::camera::CameraModel> camera_model,
+                           vw::camera::CameraModelPtr camera_model,
                            int32 cols, int32 rows ) {
     float scale;
     return camera_bbox( dem_georef, camera_model, cols, rows, scale );
@@ -491,7 +491,7 @@ namespace cartography {
   BBox2 camera_bbox(ImageViewBase<DEMImageT> const& dem,
                     GeoReference const& dem_georef,
                     GeoReference const& target_georef, // return box in this projection
-                    boost::shared_ptr<vw::camera::CameraModel> camera_model,
+                    vw::camera::CameraModelPtr camera_model,
                     int32 cols, int32 rows, float &mean_gsd,
                     bool quick=false,
                     std::vector<Vector3> *coords=0 ) {
@@ -742,7 +742,7 @@ namespace cartography {
   inline BBox2 camera_bbox( ImageViewBase<DEMImageT> const& dem,
                             GeoReference const& dem_georef,
                             GeoReference const& target_georef,
-                            boost::shared_ptr<vw::camera::CameraModel> camera_model,
+                            vw::camera::CameraModelPtr camera_model,
                             int32 cols, int32 rows) {
     float mean_gsd;
     return camera_bbox<DEMImageT>( dem.impl(), dem_georef, target_georef,

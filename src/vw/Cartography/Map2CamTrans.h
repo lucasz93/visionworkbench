@@ -23,6 +23,7 @@
 #include <vw/Image/Transform.h>
 #include <vw/FileIO/DiskImageView.h>
 #include <vw/Cartography/GeoReference.h>
+#include <vw/Camera/CameraModel.h>
 
 
 /// \file Map2CamTrans.h
@@ -45,7 +46,7 @@ namespace vw { namespace camera{
 namespace vw { namespace cartography {
 
   class Map2CamTrans : public TransformBase<Map2CamTrans> {
-    camera::CameraModel const* m_cam;
+    camera::CameraModelAllocatorPtr m_cam;
     GeoReference         m_image_georef, m_dem_georef;
     DiskImageView<float> m_dem;
     Vector2i             m_image_size;
@@ -66,7 +67,7 @@ namespace vw { namespace cartography {
     mutable BBox2i                             m_cached_rv_box;
 
   public:
-    Map2CamTrans( camera::CameraModel const* cam,
+    Map2CamTrans( camera::CameraModelAllocatorPtr cam,
                   GeoReference const& image_georef,
                   GeoReference const& dem_georef,
                   std::string  const& dem_file,
@@ -88,7 +89,7 @@ namespace vw { namespace cartography {
 
   /// Variant of Map2CamTrans that accepts a constant elevation instead of a DEM.
   class Datum2CamTrans : public TransformBase<Map2CamTrans> {
-    camera::CameraModel const* m_cam;
+    camera::CameraModelAllocatorPtr m_cam;
     GeoReference m_image_georef, m_dem_georef;
     float        m_dem_height;
     Vector2i m_image_size;
@@ -96,7 +97,7 @@ namespace vw { namespace cartography {
     Vector2      m_invalid_pix;
 
   public:
-    Datum2CamTrans( camera::CameraModel const* cam,
+    Datum2CamTrans( camera::CameraModelAllocatorPtr cam,
                     GeoReference const& image_georef,
                     GeoReference const& dem_georef,
                     float               dem_height,
