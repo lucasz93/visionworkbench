@@ -65,6 +65,8 @@ namespace thread {
 
 }} // namespace vw::thread
 
+thread_local vw::Thread* vw::Thread::m_self = nullptr;
+
 vw::uint64 vw::Thread::id() {
 
   // If the thread ID has not been accessed before, we initialize

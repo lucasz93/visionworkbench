@@ -48,8 +48,7 @@ void Task::signal_finished() {
 //----------------------------------------------------
 // WorkQueue
 
-std::vector<boost::shared_ptr<StateTask>> WorkQueue::WorkerThread::m_pre;
-std::vector<boost::shared_ptr<StateTask>> WorkQueue::WorkerThread::m_post;
+std::vector<boost::shared_ptr<TaskEventListener>> WorkQueue::WorkerThread::m_listeners;
 
 WorkQueue::WorkerThread::WorkerThread(WorkQueue& queue, boost::shared_ptr<Task> initial_task,
                                       int thread_id, bool &should_die) :
@@ -58,12 +57,14 @@ WorkQueue::WorkerThread::WorkerThread(WorkQueue& queue, boost::shared_ptr<Task> 
 
 void WorkQueue::WorkerThread::operator()() {
   do {
+    auto thread_id = Thread::id();
+
     VW_OUT(DebugMessage, "thread") << "ThreadPool: running worker thread "
                                    << m_thread_id << "\n";
 
     // Initialise the thread state.
-    for (auto& t : m_pre) {
-      (*t)();
+    for (auto& t : m_listeners) {
+      t->pre_task(thread_id);
     }
 
     // Run the task and then signal that it is finished
@@ -82,8 +83,8 @@ void WorkQueue::WorkerThread::operator()() {
     }
 
     // Cleanup the thread state.
-    for (auto& t : m_post) {
-      (*t)();
+    for (auto& t : m_listeners) {
+      t->post_task(thread_id);
     }
   } while ( m_task && !m_should_die ); // Quit if no task or when instructed
 }
