@@ -69,13 +69,13 @@ namespace vw {
   // ----------------------  Task Generator  ---------------------------
   // ----------------------  --------------  ---------------------------
 
-  /// Run before or after a Task.
-  class StateTask {
+  /// Run before and after a Task.
+  class TaskEventListener {
   public:
-    virtual ~StateTask() {}
+    virtual ~TaskEventListener() {}
 
-    /// Do the work!  All Task StateTask classes must implement this.
-    virtual void operator()() = 0;
+    virtual void pre_task(uint64_t id) {}
+    virtual void post_task(uint64_t id) {}
   };
 
   /// Work Queue Base Class - This is really a thread pool!
@@ -97,7 +97,7 @@ namespace vw {
       ~WorkerThread() {}
       void operator()();
 
-      static std::vector<boost::shared_ptr<StateTask>> m_pre, m_post;
+      static std::vector<boost::shared_ptr<TaskEventListener>> m_listeners;
     }; // End class WorkerThread
 
   private: // Variables
@@ -158,8 +158,7 @@ namespace vw {
 
     /// A list of functors to run before and after a Task on a thread.
     /// Useful for creating and destroying state needed for every Task.
-    static void add_pre_task(boost::shared_ptr<StateTask> task) { WorkerThread::m_pre.push_back(task); }
-    static void add_post_task(boost::shared_ptr<StateTask> task) { WorkerThread::m_post.push_back(task); }
+    static void add_listener(boost::shared_ptr<TaskEventListener> task) { WorkerThread::m_listeners.push_back(task); }
 
   };
 

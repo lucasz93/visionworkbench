@@ -43,8 +43,8 @@ namespace vw { namespace stereo { namespace detail {
     
     inline result_type operator()( domain_type const& x ) const {
       Vector4 output;
-      subvector(output,0,2) = m_cameras[0]->copy()->point_to_pixel( x );
-      subvector(output,2,2) = m_cameras[1]->copy()->point_to_pixel( x );
+      subvector(output,0,2) = m_cameras[0]->point_to_pixel( x );
+      subvector(output,2,2) = m_cameras[1]->point_to_pixel( x );
       return output;
     }
   };
@@ -121,9 +121,8 @@ Vector3 StereoModel::operator()(vector<Vector2> const& pixVec,
           pix == camera::CameraModel::invalid_pixel() ) 
         continue;
       
-      auto cam = m_cameras[p]->copy();
-      camDirs.push_back(cam->pixel_to_vector(pix));
-      camCtrs.push_back(cam->camera_center(pix));
+      camDirs.push_back(m_cameras[p]->pixel_to_vector(pix));
+      camCtrs.push_back(m_cameras[p]->camera_center(pix));
     }
 
     // Not enough valid rays

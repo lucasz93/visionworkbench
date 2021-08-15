@@ -151,10 +151,25 @@ namespace vw {
   //                            THREAD
   // --------------------------------------------------------------
 
+  /// Run at the end of thread execution.
+  class ThreadEventListener {
+  public:
+    virtual ~ThreadEventListener() {}
+
+    virtual void finish(uint64_t id) {}
+  };
+
   /// A thread class, that runs a "Task", which is an object or
   /// function that has the operator() defined.  When the Thread object
   /// is destroyed it will join the child thread if it has not already terminated.
   class Thread : private boost::noncopyable {
+    friend class TaskHelper;
+
+    // Pointer to the active thread object. Will be null for the main thread.
+    // Allows objects to to listen for thread destruction.
+    static thread_local Thread* m_self;
+
+    std::vector<boost::shared_ptr<ThreadEventListener>> m_listeners;
 
     boost::thread m_thread;
 
@@ -167,9 +182,21 @@ namespace vw {
     template <class TaskT>
     class TaskHelper {
       boost::shared_ptr<TaskT> m_task;
+      Thread* m_thread;
     public:
-      TaskHelper(boost::shared_ptr<TaskT> task) : m_task(task) {}
-      void operator() () { (*m_task)(); }
+      TaskHelper(Thread *thread, boost::shared_ptr<TaskT> task) : m_thread(thread), m_task(task) {}
+      TaskHelper(Thread *thread, const TaskT &task) : m_thread(thread), m_task(new TaskT(task)) {}
+      void operator() () { 
+        Thread::m_self = m_thread;
+
+        (*m_task)();
+
+        auto thread_id = Thread::id();
+        for (auto &t : m_thread->m_listeners)
+          t->finish(thread_id);
+
+        Thread::m_self = nullptr;
+      }
     };
 
   public:
@@ -183,9 +210,9 @@ namespace vw {
 
       // Ames Stereo Pipeline was running out of stack space when running
       // stereo_tri in threads. Upping stack size from default 8KB to 32KB.
-      attr.set_stack_size(32768 + get_platform_stack_minsize(attr));
+      attr.set_stack_size(8388608 + get_platform_stack_minsize(attr));
 
-      m_thread = std::move(boost::thread(attr, task));
+      m_thread = std::move(boost::thread(attr, TaskHelper<TaskT>(this, task)));
     }
 
     /// This variant of the constructor takes a shared pointer to a task.
@@ -197,9 +224,9 @@ namespace vw {
 
       // Ames Stereo Pipeline was running out of stack space when running
       // stereo_tri in threads. Upping stack size from default 8KB to 32KB.
-      attr.set_stack_size(32768 + get_platform_stack_minsize(attr));
+      attr.set_stack_size(8388608 + get_platform_stack_minsize(attr));
 
-      m_thread = std::move(boost::thread(attr, TaskHelper<TaskT>(task)));
+      m_thread = std::move(boost::thread(attr, TaskHelper<TaskT>(this, task)));
     }
 
     /// Destroys the thread. User is expected to either call join() themselves,
@@ -211,6 +238,11 @@ namespace vw {
     /// finishes execution of the task and all resources are reclaimed.
     inline void join() { m_thread.join(); }
 
+    static inline Thread* self() { return m_self; }
+    
+    void add_listener(boost::shared_ptr<ThreadEventListener> listener) {
+      m_listeners.push_back(listener);
+    }
 
     // --------------
     // STATIC METHODS
