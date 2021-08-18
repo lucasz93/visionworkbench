@@ -19,6 +19,8 @@
 #include <vw/Core/Thread.h>
 #include <vw/Core/FundamentalTypes.h>
 #include <vw/Core/RunOnce.h>
+#include <vw/Core/System.h>
+#include <vw/Core/Settings.h>
 
 #include <boost/thread.hpp>
 
@@ -66,6 +68,15 @@ namespace thread {
 }} // namespace vw::thread
 
 thread_local vw::Thread* vw::Thread::m_self = nullptr;
+
+vw::FastSharedMutex::FastSharedMutex(int contention_free_count)
+  : shared_locks_array_ptr(std::make_shared<array_slock_t>(contention_free_count < 0 ? vw_settings().default_num_threads() : contention_free_count))
+  , shared_locks_array(*shared_locks_array_ptr)
+  , want_x_lock(false)
+  , recursive_xlock_count(0)
+  , owner_thread_id(thread_id_t()) 
+{
+}
 
 vw::uint64 vw::Thread::id() {
 
