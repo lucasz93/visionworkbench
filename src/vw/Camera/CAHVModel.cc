@@ -312,7 +312,7 @@ namespace camera {
     dst_camera0.V = dst_camera1.V = vp + vc * a;
   }
 
-  void CAHVModel::write(std::string const& filename ) const {
+  void CAHVModel::write(std::string const& filename ) {
     try {
       std::ofstream output(filename.c_str(), std::ofstream::out);
       output.exceptions(std::ofstream::failbit | std::ofstream::badbit);

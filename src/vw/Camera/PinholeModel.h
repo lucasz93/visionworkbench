@@ -232,10 +232,6 @@ namespace camera {
     virtual Vector3 camera_center(Vector2 const& /*pix*/ = Vector2() ) const;
     void set_camera_center(Vector3 const& position);
 
-    virtual boost::shared_ptr<CameraModel> copy() const override {
-      return boost::make_shared<PinholeModel>(*this);
-    }
-
     // Pose is a rotation which moves a vector in camera coordinates
     // into world coordinates.
     // - The pinhole camera position does not vary by pixel so the input pixel is ignored.

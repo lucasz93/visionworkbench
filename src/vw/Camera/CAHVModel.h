@@ -122,12 +122,8 @@ namespace camera {
     virtual Vector3 pixel_to_vector(Vector2 const& pix  ) const;
     virtual Vector3 camera_center  (Vector2 const& /*pix*/ = Vector2() ) const;
 
-    virtual boost::shared_ptr<CameraModel> copy() const override {
-      return boost::make_shared<CAHVModel>(*this);
-    }
-
     /// Write CAHV model to file
-    void write(std::string const& filename) const;
+    void write(std::string const& filename);
 
     //------------------------------------------------------------------
     // Exposed Variables

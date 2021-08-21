@@ -96,24 +96,12 @@ namespace camera {
     /// - Generally the input pixel is only used for linescane cameras.
     virtual Quaternion<double> camera_pose(Vector2 const& /*pix*/) const;
 
-    /// Creates a deep copy of this CameraModel.
-    /// We can't invoke copy constructors from a CameraModel pointer, so this
-    /// method is implemented by derived classes.
-    ///
-    /// Pointer is returned through a shared_ptr because the parent still
-    /// needs to manage the lifecycle of the pointer.
-    /// CameraModels with no state need not allocate memory, so they can just
-    /// return a shared_ptr to themselves (with a no-op deleter).
-    /// Stateful CameraModels may choose to maintain a cache of previously
-    /// allocated CameraModels to increase performance, and the deleter
-    /// returns the camera to the pool.
-    virtual boost::shared_ptr<CameraModel> copy() const = 0;
-
     // This should be a value which can never occur in normal
     // circumstances, but it most not be made up of NaN values, as those
     // are hard to compare.
     inline static Vector2 invalid_pixel(){ return Vector2(-1e8, -1e8); }
   };
+
 
   /// This class is useful if you have an existing camera model, and
   /// you want to systematically "tweak" its extrinsic and intrinsic
@@ -214,12 +202,6 @@ namespace camera {
     
     void write(std::string const&);
     void read (std::string const&);
-
-    virtual boost::shared_ptr<CameraModel> copy() const override {
-      auto dupe = boost::make_shared<AdjustedCameraModel>(*this);
-      dupe->m_camera = m_camera->copy();
-      return dupe;
-    }
 
     friend std::ostream& operator<<(std::ostream&, AdjustedCameraModel const&);
   };
